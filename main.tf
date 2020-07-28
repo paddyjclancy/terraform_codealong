@@ -4,10 +4,10 @@ provider "aws" {
 
 # Creating a vpc
 resource "aws_vpc" "mainvpc" {
-  cidr_block = "13.0.0.0/16"
+  cidr_block = "41.0.0.0/16"
   tags = {
 
-    Name = "Eng57.fp.tf.vpc"
+    Name = "${var.name}vpc"
   }
 }
 
@@ -15,19 +15,19 @@ resource "aws_vpc" "mainvpc" {
 resource "aws_internet_gateway" "gw" {
   vpc_id = aws_vpc.mainvpc.id
   tags = {
-    Name = "${var.name} igw"
+    Name = "${var.name}igw"
   }
 }
 
 # Create public sub
 resource "aws_subnet" "subpublic" {
   vpc_id     = aws_vpc.mainvpc.id
-  cidr_block = "13.0.1.0/24"
+  cidr_block = "41.0.1.0/24"
   availability_zone = "eu-west-1b"
   map_public_ip_on_launch = true
 
   tags = {
-    Name = "${var.name} sub.public"
+    Name = "${var.name}public.sub"
   }
 }
 
@@ -46,7 +46,7 @@ resource "aws_security_group" "sgapp" {
   }
 
   ingress {
-    description = "httpx from VPC"
+    description = "http from VPC"
     from_port   = 80
     to_port     = 80
     protocol    = "tcp"
@@ -54,12 +54,20 @@ resource "aws_security_group" "sgapp" {
   }
 
   ingress {
-    description = "httpx from VPC"
+    description = "port 3000 from VPC"
     from_port   = 3000
     to_port     = 3000
     protocol    = "tcp"
     cidr_blocks = ["0.0.0.0/0"]
   }
+
+  ingress {
+    description = "ssh from VPC"
+    from_port   = 22
+    to_port     = 22
+    protocol    = "tcp"
+    cidr_blocks = [var.my_ip]
+  }  
 
   egress {
     from_port   = 0
@@ -69,7 +77,7 @@ resource "aws_security_group" "sgapp" {
   }
 
   tags = {
-    Name = "Eng57.fp.sg.app"
+    Name = "${var.name}SG.App"
   }
 }
 
@@ -99,27 +107,45 @@ resource "aws_network_acl" "naclpublic" {
   # traffic on por EPHEMERAL PORTS allow
 
   egress {
-    protocol   = "tcp"
-    rule_no    = 120
-    action     = "allow"
-    cidr_block = "0.0.0.0/0"
-    from_port  = 1024
-    to_port    = 65535
+    protocol    = "tcp"
+    rule_no     = 120
+    action      = "allow"
+    cidr_block  = "0.0.0.0/0"
+    from_port   = 1024
+    to_port     = 65535
   }
 
   ingress {
-    protocol   = "tcp"
-    rule_no    = 120
-    action     = "allow"
-    cidr_block = "0.0.0.0/0"
-    from_port  = 1024
-    to_port    = 65535
+    protocol    = "tcp"
+    rule_no     = 120
+    action      = "allow"
+    cidr_block  = "0.0.0.0/0"
+    from_port   = 1024
+    to_port     = 65535
   }
+
+  ingress {
+    rule_no     = 130
+    from_port   = 22
+    to_port     = 22
+    protocol    = "tcp"
+    action      = "allow"
+    cidr_block = "${var.my_ip}"
+  }  
+
+  egress {
+    rule_no     = 130
+    from_port   = 22
+    to_port     = 22
+    protocol    = "tcp"
+    action      = "allow"
+    cidr_block = "${var.my_ip}"
+  }  
 
   subnet_ids = [aws_subnet.subpublic.id]
 
   tags = {
-    Name = "Eng57.fp.nacls.public"
+    Name = "${var.name}NACL.public"
   }
 }
 
@@ -131,7 +157,7 @@ resource "aws_route_table" "routepublic" {
     gateway_id = aws_internet_gateway.gw.id
   }
   tags = {
-    Name = "Eng57.fp.route.public"
+    Name = "${var.name}route.public"
   }
 }
 
@@ -144,27 +170,75 @@ resource "aws_route_table_association" "routeapp" {
 # load init script to be used
 data "template_file" "initapp" {
   template = file("./scripts/app/init.sh.tpl")
-  # vars = {
-  #   consul_address = "${aws_instance.consul.private_ip}"
-  # }
+  vars = {
+    db_host = "${aws_instance.DB.private_ip}"
+  }
 }
 
 
 # Creating an ec2 instance IMAGE with our app
 resource "aws_instance" "Web" {
-  ami           = "ami-00b48f09c568b0014"
-  instance_type = "t2.micro"
-  subnet_id = aws_subnet.subpublic.id
-  vpc_security_group_ids = [aws_security_group.sgapp.id]
+  ami                         = var.ami-app
+  instance_type               = "t2.micro"
+  subnet_id                   = aws_subnet.subpublic.id
+  vpc_security_group_ids      = [aws_security_group.sgapp.id]
   associate_public_ip_address = true
-  user_data = data.template_file.initapp.rendered
-  tags = {
-    Name = "Eng57.filipe.paiva.tf.app"
+  user_data                   = data.template_file.initapp.rendered
+  tags                        = {
+    Name = "${var.name}app"
   }
 }
 
+#### Private
 
+# Create public sub
+resource "aws_subnet" "subprivate" {
+  vpc_id     = aws_vpc.mainvpc.id
+  cidr_block = "41.0.2.0/24"
+  availability_zone = "eu-west-1b"
+  tags = {
+    Name = "${var.name}private.sub"
+  }
+}
 
+# Creating security group for db
+resource "aws_security_group" "sgdb" {
+  name        = "db-sg"
+  description = "Allow http and https traffic"
+  vpc_id      = aws_vpc.mainvpc.id
+
+  ingress {
+    description = "Mongodb connection"
+    from_port   = 27017
+    to_port     = 27017
+    protocol    = "tcp"
+    cidr_blocks = ["41.0.1.0/24"]
+  }
+
+  egress {
+    from_port   = 0
+    to_port     = 0
+    protocol    = "-1"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  tags = {
+    Name = "${var.name}SG.DB"
+  }
+}
+
+# Create EC2 instance - private
+resource "aws_instance" "DB" {
+  ami                         = var.ami-db
+  instance_type               = "t2.micro"
+  subnet_id                   = aws_subnet.subprivate.id
+  vpc_security_group_ids      = [aws_security_group.sgdb.id]
+  associate_public_ip_address = true
+  # user_data                   = data.template_file.initdb.rendered
+  tags                        = {
+    Name = "${var.name}db"
+  }
+}
 
 
 # Creating an example ec2 instance

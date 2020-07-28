@@ -5,5 +5,13 @@ variable "vpc_id" {
 
 variable "name" {
   type = string
-  default= "Eng57.fp."
+  default= "Eng57.PC."
+}
+
+variable "ami-app" {
+  default = "ami-00b48f09c568b0014"
+}
+
+variable "ami-db" {
+  default = "ami-03b13f993274ce14a"
 }
