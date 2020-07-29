@@ -8,7 +8,7 @@ variable "name" {
   default= "Eng57.PC."
 }
 
-variable "ami-app" {
+variable "ami_app" {
   default = "ami-00b48f09c568b0014"
 }
 
