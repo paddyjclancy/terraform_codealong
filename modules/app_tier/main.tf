@@ -111,7 +111,7 @@ resource "aws_network_acl" "naclpublic" {
     to_port     = 22
     protocol    = "tcp"
     action      = "allow"
-    cidr_block = "${var.my_ip}"
+    cidr_block = var.my_ip
   }  
 
   egress {
@@ -120,7 +120,7 @@ resource "aws_network_acl" "naclpublic" {
     to_port     = 22
     protocol    = "tcp"
     action      = "allow"
-    cidr_block = "${var.my_ip}"
+    cidr_block = var.my_ip
   }  
 
   subnet_ids = [aws_subnet.subpublic.id]

@@ -26,7 +26,7 @@ module "app_tier" {
   name = var.name
   my_ip = var.my_ip
   internet_gateway_id = aws_internet_gateway.gw.id
-  db_private_ip = aws_instance.DB.private_ip
+  db_private_ip = module.db_tier.db_private_ip
   ami_app = var.ami_app
   # ssh_key_var = var.ssh_key_var
 }
@@ -35,82 +35,17 @@ module "app_tier" {
 
 #### Private
 
-# Create public sub
-resource "aws_subnet" "subprivate" {
-  vpc_id     = aws_vpc.mainvpc.id
-  cidr_block = "41.0.2.0/24"
-  availability_zone = "eu-west-1b"
-  tags = {
-    Name = "${var.name}private.sub"
-  }
-}
-
-# Creating security group for db
-resource "aws_security_group" "sgdb" {
-  name        = "db-sg"
-  description = "Allow http and https traffic"
-  vpc_id      = aws_vpc.mainvpc.id
-
-  ingress {
-    description = "Mongodb connection"
-    from_port   = 27017
-    to_port     = 27017
-    protocol    = "tcp"
-    # cidr_blocks = ["41.0.1.0/24"]
-    security_groups = [module.app_tier.security_group_id]
-  }
-
-  egress {
-    from_port   = 0
-    to_port     = 0
-    protocol    = "-1"
-    cidr_blocks = ["0.0.0.0/0"]
-  }
-
-  tags = {
-    Name = "${var.name}SG.DB"
-  }
-}
-
-resource "aws_network_acl" "naclprivate" {
+module "db_tier" {
+  source = "./modules/db_tier"
   vpc_id = aws_vpc.mainvpc.id
-  
-  ingress {
-    protocol    = "tcp"
-    rule_no     = 100
-    action      = "allow"
-    cidr_block  = module.app_tier.subpublic_cidr_block
-    from_port   = 27017
-    to_port     = 27017
-  }
-  egress {
-    protocol    = "tcp"
-    rule_no     = 120
-    action      = "allow"
-    cidr_block  = "0.0.0.0/0"
-    from_port   = 1024
-    to_port     = 65535
-  }
-
-  subnet_ids = [aws_subnet.subprivate.id]
-
-  tags = {
-
-  }
+  name = var.name
+  subpublic_cidr_block = module.app_tier.subpublic_cidr_block
+  app_sg_id = module.app_tier.app_sg_id
+  ami_db = var.ami_db
 }
 
-# Create EC2 instance - private
-resource "aws_instance" "DB" {
-  ami                         = var.ami-db
-  instance_type               = "t2.micro"
-  subnet_id                   = aws_subnet.subprivate.id
-  vpc_security_group_ids      = [aws_security_group.sgdb.id]
-  associate_public_ip_address = true
-  # user_data                   = data.template_file.initdb.rendered
-  tags                        = {
-    Name = "${var.name}db"
-  }
-}
+
+
 
 
 # Creating an example ec2 instance
