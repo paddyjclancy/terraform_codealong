@@ -28,7 +28,6 @@ module "app_tier" {
   internet_gateway_id = aws_internet_gateway.gw.id
   db_private_ip = module.db_tier.db_private_ip
   ami_app = var.ami_app
-  # ssh_key_var = var.ssh_key_var
 }
 
 ##------------------------------##
