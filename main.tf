@@ -30,10 +30,7 @@ module "app_tier" {
   ami_app = var.ami_app
 }
 
-##------------------------------##
-
-#### Private
-
+# Reference to db tier module
 module "db_tier" {
   source = "./modules/db_tier"
   vpc_id = aws_vpc.mainvpc.id
@@ -42,38 +39,4 @@ module "db_tier" {
   app_sg_id = module.app_tier.app_sg_id
   ami_db = var.ami_db
 }
-
-
-
-
-
-# Creating an example ec2 instance
-# resource "aws_instance" "Web" {
-#   ami           = "ami-089cc16f7f08c4457"
-#   instance_type = "t2.micro"
-#   associate_public_ip_address = true
-#   tags = {
-#     Name = "Eng57.filipe.paiva.tf.app"
-#   }
-# }
-
-# resource "aws_instance" "Bastion" {
-#   ami           = "ami-089cc16f7f08c4457"
-#   instance_type = "t2.micro"
-#   associate_public_ip_address = true
-#   tags = {
-#     Name = "Eng57.filipe.paiva.tf.bastion"
-#   }
-# }
-
-# create vpc
-# give it the tag Name Eng57.your.name.vpc.tf
-
-# add a itg
-# add some routes
-# add some subnets
-# add some NACLs
-# add
-
-
 
