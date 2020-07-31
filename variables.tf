@@ -15,3 +15,4 @@ variable "ami_app" {
 variable "ami_db" {
   default = "ami-03b13f993274ce14a"
 }
+
